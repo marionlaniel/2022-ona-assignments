@@ -1,0 +1,72 @@
+---
+title: "Exercice 1"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Dataset
+```{r}
+Connections <- read.csv("~/Documents/McGill/S2022/ORGB672/RStudio/2022-ona-assignments/Connections.csv")
+```
+
+## Count Network per Employer
+```{r, include=FALSE}
+library(dplyr)
+```
+```{r}
+network_count = Connections %>% 
+                count(Company)
+network_count %>% arrange(desc(n)) %>% head(10)
+nrow(Connections)
+```
+## Create Nodes and Edges DataFrame
+```{r, include=FALSE}
+library(tidyverse)
+```
+```{r, results='hide'}
+sources <- Connections %>%
+  distinct(Last.Name) %>%
+  rename(label = Last.Name)
+destinations <- Connections %>%
+  distinct(Company) %>%
+  rename(label = Company)
+nodes <- full_join(sources, destinations, by = "label")
+nodes
+nodes <- nodes %>% rowid_to_column("id")
+nodes
+per_route <- Connections %>%  
+  group_by(Last.Name, Company) %>%
+  summarise(weight = n()) %>% 
+  ungroup()
+per_route
+edges <- per_route %>% 
+  left_join(nodes, by = c("Last.Name" = "label")) %>% 
+  rename(from = id)
+
+edges <- edges %>% 
+  left_join(nodes, by = c("Company" = "label")) %>% 
+  rename(to = id)
+edges <- select(edges, from, to, weight)
+edges
+```
+
+## Create Graph
+```{r, include=FALSE}
+library(tidygraph)
+library(ggraph)
+```
+```{r}
+routes_tidy <- tbl_graph(nodes = nodes, edges = edges, directed = TRUE)
+class(routes_tidy)
+ggraph(routes_tidy, layout = "graphopt") + 
+  geom_node_point() +
+  geom_edge_link(aes(width = weight), alpha = 0.8) + 
+  scale_edge_width(range = c(0.2, 2)) +
+  labs(edge_width = "Letters") +
+  theme_graph()
+```
+
+
